@@ -12,14 +12,13 @@ def _read_cmd_output(commandstring, capture_stderr=False):
     # function is not usable during python bootstrap.
     import os
     import contextlib
-    fp = open("/tmp/_aix_support.%s"%(
-        os.getpid(),), "w+b")
+    fp = open(f"/tmp/_aix_support.{os.getpid()}", "w+b")
 
     with contextlib.closing(fp) as fp:
         if capture_stderr:
-            cmd = "%s >'%s' 2>&1" % (commandstring, fp.name)
+            cmd = f"{commandstring} >'{fp.name}' 2>&1"
         else:
-            cmd = "%s 2>/dev/null >'%s'" % (commandstring, fp.name)
+            cmd = f"{commandstring} 2>/dev/null >'{fp.name}'"
         return fp.read() if not os.system(cmd) else None
 
 
@@ -85,11 +84,10 @@ def aix_platform():
 
 # extract vrtl from the BUILD_GNU_TYPE as an int
 def _aix_bgt():
-    # type: () -> List[int]
-    gnu_type = sysconfig.get_config_var("BUILD_GNU_TYPE")
-    if not gnu_type:
+    if gnu_type := sysconfig.get_config_var("BUILD_GNU_TYPE"):
+        return _aix_vrtl(vrmf=gnu_type)
+    else:
         raise ValueError("BUILD_GNU_TYPE is not defined")
-    return _aix_vrtl(vrmf=gnu_type)
 
 
 def aix_buildtag():

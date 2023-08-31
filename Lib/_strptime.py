@@ -117,16 +117,26 @@ class LocaleTime(object):
         date_time[0] = time.strftime("%c", time_tuple).lower()
         date_time[1] = time.strftime("%x", time_tuple).lower()
         date_time[2] = time.strftime("%X", time_tuple).lower()
-        replacement_pairs = [('%', '%%'), (self.f_weekday[2], '%A'),
-                    (self.f_month[3], '%B'), (self.a_weekday[2], '%a'),
-                    (self.a_month[3], '%b'), (self.am_pm[1], '%p'),
-                    ('1999', '%Y'), ('99', '%y'), ('22', '%H'),
-                    ('44', '%M'), ('55', '%S'), ('76', '%j'),
-                    ('17', '%d'), ('03', '%m'), ('3', '%m'),
-                    # '3' needed for when no leading zero.
-                    ('2', '%w'), ('10', '%I')]
-        replacement_pairs.extend([(tz, "%Z") for tz_values in self.timezone
-                                                for tz in tz_values])
+        replacement_pairs = [
+            ('%', '%%'),
+            (self.f_weekday[2], '%A'),
+            (self.f_month[3], '%B'),
+            (self.a_weekday[2], '%a'),
+            (self.a_month[3], '%b'),
+            (self.am_pm[1], '%p'),
+            ('1999', '%Y'),
+            ('99', '%y'),
+            ('22', '%H'),
+            ('44', '%M'),
+            ('55', '%S'),
+            ('76', '%j'),
+            ('17', '%d'),
+            ('03', '%m'),
+            ('3', '%m'),
+            ('2', '%w'),
+            ('10', '%I'),
+            *[(tz, "%Z") for tz_values in self.timezone for tz in tz_values],
+        ]
         for offset,directive in ((0,'%c'), (1,'%x'), (2,'%X')):
             current_format = date_time[offset]
             for old, new in replacement_pairs:
@@ -140,10 +150,7 @@ class LocaleTime(object):
             # 2005-01-03 occurs before the first Monday of the year.  Otherwise
             # %U is used.
             time_tuple = time.struct_time((1999,1,3,1,1,1,6,3,0))
-            if '00' in time.strftime(directive, time_tuple):
-                U_W = '%W'
-            else:
-                U_W = '%U'
+            U_W = '%W' if '00' in time.strftime(directive, time_tuple) else '%U'
             date_time[offset] = current_format.replace('11', U_W)
         self.LC_date_time = date_time[0]
         self.LC_date = date_time[1]
@@ -176,10 +183,7 @@ class TimeRE(dict):
         Order of execution is important for dependency reasons.
 
         """
-        if locale_time:
-            self.locale_time = locale_time
-        else:
-            self.locale_time = LocaleTime()
+        self.locale_time = locale_time if locale_time else LocaleTime()
         base = super()
         base.__init__({
             # The " [1-9]" part of the regex is to make %c from ANSI C work
@@ -232,8 +236,8 @@ class TimeRE(dict):
         else:
             return ''
         regex = '|'.join(re_escape(stuff) for stuff in to_convert)
-        regex = '(?P<%s>%s' % (directive, regex)
-        return '%s)' % regex
+        regex = f'(?P<{directive}>{regex}'
+        return f'{regex})'
 
     def pattern(self, format):
         """Return regex pattern for the format string.
@@ -252,11 +256,9 @@ class TimeRE(dict):
         format = whitespace_replacement.sub(r'\\s+', format)
         while '%' in format:
             directive_index = format.index('%')+1
-            processed_format = "%s%s%s" % (processed_format,
-                                           format[:directive_index-1],
-                                           self[format[directive_index]])
+            processed_format = f"{processed_format}{format[:directive_index - 1]}{self[format[directive_index]]}"
             format = format[directive_index+1:]
-        return "%s%s" % (processed_format, format)
+        return f"{processed_format}{format}"
 
     def compile(self, format):
         """Return a compiled re object for the format string."""
@@ -285,9 +287,8 @@ def _calc_julian_from_U_or_W(year, week_of_year, day_of_week, week_starts_Mon):
     week_0_length = (7 - first_weekday) % 7
     if week_of_year == 0:
         return 1 + day_of_week - first_weekday
-    else:
-        days_to_week = week_0_length + (7 * (week_of_year - 1))
-        return 1 + days_to_week + day_of_week
+    days_to_week = week_0_length + (7 * (week_of_year - 1))
+    return 1 + days_to_week + day_of_week
 
 
 def _strptime(data_string, format="%a %b %d %H:%M:%S %Y"):

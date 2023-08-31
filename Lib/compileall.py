@@ -198,8 +198,7 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
                           "only for more than one optimization level")
 
     if rx is not None:
-        mo = rx.search(fullname)
-        if mo:
+        if mo := rx.search(fullname):
             return success
 
     if limit_sl_dest is not None and os.path.islink(fullname):
@@ -211,17 +210,15 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
     if os.path.isfile(fullname):
         for opt_level in optimize:
             if legacy:
-                opt_cfiles[opt_level] = fullname + 'c'
+                opt_cfiles[opt_level] = f'{fullname}c'
             else:
                 if opt_level >= 0:
                     opt = opt_level if opt_level >= 1 else ''
                     cfile = (importlib.util.cache_from_source(
                              fullname, optimization=opt))
-                    opt_cfiles[opt_level] = cfile
                 else:
                     cfile = importlib.util.cache_from_source(fullname)
-                    opt_cfiles[opt_level] = cfile
-
+                opt_cfiles[opt_level] = cfile
         head, tail = name[:-3], name[-3:]
         if tail == '.py':
             if not force:
@@ -271,7 +268,7 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
                     print('*** Error compiling {!r}...'.format(fullname))
                 else:
                     print('*** ', end='')
-                print(e.__class__.__name__ + ':', e)
+                print(f'{e.__class__.__name__}:', e)
             else:
                 if ok == 0:
                     success = False
@@ -392,11 +389,7 @@ def main():
     if args.limit_sl_dest == "":
         args.limit_sl_dest = None
 
-    if args.recursion is not None:
-        maxlevels = args.recursion
-    else:
-        maxlevels = args.maxlevels
-
+    maxlevels = args.recursion if args.recursion is not None else args.maxlevels
     if args.opt_levels is None:
         args.opt_levels = [-1]
 
@@ -418,7 +411,7 @@ def main():
                     compile_dests.append(line.strip())
         except OSError:
             if args.quiet < 2:
-                print("Error reading file list {}".format(args.flist))
+                print(f"Error reading file list {args.flist}")
             return False
 
     if args.invalidation_mode:
@@ -429,20 +422,22 @@ def main():
 
     success = True
     try:
-        if compile_dests:
-            for dest in compile_dests:
-                if os.path.isfile(dest):
-                    if not compile_file(dest, args.ddir, args.force, args.rx,
-                                        args.quiet, args.legacy,
-                                        invalidation_mode=invalidation_mode,
-                                        stripdir=args.stripdir,
-                                        prependdir=args.prependdir,
-                                        optimize=args.opt_levels,
-                                        limit_sl_dest=args.limit_sl_dest,
-                                        hardlink_dupes=args.hardlink_dupes):
-                        success = False
-                else:
-                    if not compile_dir(dest, maxlevels, args.ddir,
+        if not compile_dests:
+            return compile_path(legacy=args.legacy, force=args.force,
+                                quiet=args.quiet,
+                                invalidation_mode=invalidation_mode)
+        for dest in compile_dests:
+            if os.path.isfile(dest):
+                if not compile_file(dest, args.ddir, args.force, args.rx,
+                                    args.quiet, args.legacy,
+                                    invalidation_mode=invalidation_mode,
+                                    stripdir=args.stripdir,
+                                    prependdir=args.prependdir,
+                                    optimize=args.opt_levels,
+                                    limit_sl_dest=args.limit_sl_dest,
+                                    hardlink_dupes=args.hardlink_dupes):
+                    success = False
+            elif not compile_dir(dest, maxlevels, args.ddir,
                                        args.force, args.rx, args.quiet,
                                        args.legacy, workers=args.workers,
                                        invalidation_mode=invalidation_mode,
@@ -451,12 +446,8 @@ def main():
                                        optimize=args.opt_levels,
                                        limit_sl_dest=args.limit_sl_dest,
                                        hardlink_dupes=args.hardlink_dupes):
-                        success = False
-            return success
-        else:
-            return compile_path(legacy=args.legacy, force=args.force,
-                                quiet=args.quiet,
-                                invalidation_mode=invalidation_mode)
+                success = False
+        return success
     except KeyboardInterrupt:
         if args.quiet < 2:
             print("\n[interrupted]")

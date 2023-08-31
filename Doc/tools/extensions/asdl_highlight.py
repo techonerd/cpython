@@ -11,6 +11,8 @@ from pygments.token import (Comment, Keyword, Name, Operator,
 from asdl import builtin_types
 from sphinx.highlighting import lexers
 
+
+
 class ASDLLexer(RegexLexer):
     name = "ASDL"
     aliases = ["asdl"]
@@ -26,10 +28,7 @@ class ASDLLexer(RegexLexer):
         ],
         "root": [
             include("ws"),
-            (
-                r"(module)" + _text_ws + _name,
-                bygroups(Keyword, Text, Name.Tag),
-            ),
+            (f"(module){_text_ws}{_name}", bygroups(Keyword, Text, Name.Tag)),
             (
                 r"(\w+)(\*\s|\?\s|\s)(\w+)",
                 bygroups(Name.Builtin.Pseudo, Operator, Name),

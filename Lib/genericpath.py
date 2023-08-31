@@ -89,10 +89,7 @@ def commonprefix(m):
         m = tuple(map(os.fspath, m))
     s1 = min(m)
     s2 = max(m)
-    for i, c in enumerate(s1):
-        if c != s2[i]:
-            return s1[:i]
-    return s1
+    return next((s1[:i] for i, c in enumerate(s1) if c != s2[i]), s1)
 
 # Are two stat buffers (obtained from stat, fstat or lstat)
 # describing the same file?

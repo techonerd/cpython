@@ -564,10 +564,7 @@ class Decimal(object):
                 return context._raise_error(ConversionSyntax,
                                 "Invalid literal for Decimal: %r" % value)
 
-            if m.group('sign') == "-":
-                self._sign = 1
-            else:
-                self._sign = 0
+            self._sign = 1 if m.group('sign') == "-" else 0
             intpart = m.group('int')
             if intpart is not None:
                 # finite number
@@ -581,10 +578,7 @@ class Decimal(object):
                 if diag is not None:
                     # NaN
                     self._int = str(int(diag or '0')).lstrip('0')
-                    if m.group('signal'):
-                        self._exp = 'N'
-                    else:
-                        self._exp = 'n'
+                    self._exp = 'N' if m.group('signal') else 'n'
                 else:
                     # infinity
                     self._int = '0'
@@ -594,10 +588,7 @@ class Decimal(object):
 
         # From an integer
         if isinstance(value, int):
-            if value >= 0:
-                self._sign = 0
-            else:
-                self._sign = 1
+            self._sign = 0 if value >= 0 else 1
             self._exp = 0
             self._int = str(abs(value))
             self._is_special = False
@@ -626,7 +617,7 @@ class Decimal(object):
                                  'from list or tuple.  The list or tuple '
                                  'should have exactly three elements.')
             # process sign.  The isinstance test rejects floats
-            if not (isinstance(value[0], int) and value[0] in (0,1)):
+            if not isinstance(value[0], int) or value[0] not in (0, 1):
                 raise ValueError("Invalid sign.  The first value in the tuple "
                                  "should be an integer; either 0 for a "
                                  "positive number or 1 for a negative number.")
@@ -640,14 +631,13 @@ class Decimal(object):
                 # process and validate the digits in value[1]
                 digits = []
                 for digit in value[1]:
-                    if isinstance(digit, int) and 0 <= digit <= 9:
-                        # skip leading zeros
-                        if digits or digit != 0:
-                            digits.append(digit)
-                    else:
+                    if not isinstance(digit, int) or not 0 <= digit <= 9:
                         raise ValueError("The second value in the tuple must "
                                          "be composed of integers in the range "
                                          "0 through 9.")
+                    # skip leading zeros
+                    if digits or digit != 0:
+                        digits.append(digit)
                 if value[2] in ('n', 'N'):
                     # NaN: digits form the diagnostic
                     self._int = ''.join(map(str, digits))
@@ -708,10 +698,7 @@ class Decimal(object):
         elif isinstance(f, float):
             if _math.isinf(f) or _math.isnan(f):
                 return cls(repr(f))
-            if _math.copysign(1.0, f) == 1.0:
-                sign = 0
-            else:
-                sign = 1
+            sign = 0 if _math.copysign(1.0, f) == 1.0 else 1
             n, d = abs(f).as_integer_ratio()
             k = d.bit_length() - 1
             coeff = str(n*5**k)
@@ -719,10 +706,7 @@ class Decimal(object):
             raise TypeError("argument must be int or float.")
 
         result = _dec_from_triple(sign, coeff, -k)
-        if cls is Decimal:
-            return result
-        else:
-            return cls(result)
+        return result if cls is Decimal else cls(result)
 
     def _isnan(self):
         """Returns whether the number is not actually one.
@@ -747,9 +731,7 @@ class Decimal(object):
         -1 if -INF
         """
         if self._exp == 'F':
-            if self._sign:
-                return -1
-            return 1
+            return -1 if self._sign else 1
         return 0
 
     def _check_nans(self, other=None, context=None):
@@ -763,11 +745,7 @@ class Decimal(object):
         """
 
         self_is_nan = self._isnan()
-        if other is None:
-            other_is_nan = False
-        else:
-            other_is_nan = other._isnan()
-
+        other_is_nan = False if other is None else other._isnan()
         if self_is_nan or other_is_nan:
             if context is None:
                 context = getcontext()
@@ -778,10 +756,7 @@ class Decimal(object):
             if other_is_nan == 2:
                 return context._raise_error(InvalidOperation, 'sNaN',
                                         other)
-            if self_is_nan:
-                return self._fix_nan(context)
-
-            return other._fix_nan(context)
+            return self._fix_nan(context) if self_is_nan else other._fix_nan(context)
         return 0
 
     def _compare_check_nans(self, other, context):
@@ -842,10 +817,7 @@ class Decimal(object):
 
         # check for zeros;  Decimal('0') == Decimal('-0')
         if not self:
-            if not other:
-                return 0
-            else:
-                return -((-1)**other._sign)
+            return 0 if not other else -((-1)**other._sign)
         if not other:
             return (-1)**self._sign
 
@@ -892,16 +864,13 @@ class Decimal(object):
         self, other = _convert_for_comparison(self, other, equality_op=True)
         if other is NotImplemented:
             return other
-        if self._check_nans(other, context):
-            return False
-        return self._cmp(other) == 0
+        return False if self._check_nans(other, context) else self._cmp(other) == 0
 
     def __lt__(self, other, context=None):
         self, other = _convert_for_comparison(self, other)
         if other is NotImplemented:
             return other
-        ans = self._compare_check_nans(other, context)
-        if ans:
+        if ans := self._compare_check_nans(other, context):
             return False
         return self._cmp(other) < 0
 
@@ -909,8 +878,7 @@ class Decimal(object):
         self, other = _convert_for_comparison(self, other)
         if other is NotImplemented:
             return other
-        ans = self._compare_check_nans(other, context)
-        if ans:
+        if ans := self._compare_check_nans(other, context):
             return False
         return self._cmp(other) <= 0
 
@@ -918,8 +886,7 @@ class Decimal(object):
         self, other = _convert_for_comparison(self, other)
         if other is NotImplemented:
             return other
-        ans = self._compare_check_nans(other, context)
-        if ans:
+        if ans := self._compare_check_nans(other, context):
             return False
         return self._cmp(other) > 0
 
@@ -927,8 +894,7 @@ class Decimal(object):
         self, other = _convert_for_comparison(self, other)
         if other is NotImplemented:
             return other
-        ans = self._compare_check_nans(other, context)
-        if ans:
+        if ans := self._compare_check_nans(other, context):
             return False
         return self._cmp(other) >= 0
 
@@ -944,8 +910,7 @@ class Decimal(object):
 
         # Compare(NaN, NaN) = NaN
         if (self._is_special or other and other._is_special):
-            ans = self._check_nans(other, context)
-            if ans:
+            if ans := self._check_nans(other, context):
                 return ans
 
         return Decimal(self._cmp(other))
@@ -963,11 +928,7 @@ class Decimal(object):
             elif self.is_nan():
                 return object.__hash__(self)
             else:
-                if self._sign:
-                    return -_PyHASH_INF
-                else:
-                    return _PyHASH_INF
-
+                return -_PyHASH_INF if self._sign else _PyHASH_INF
         if self._exp >= 0:
             exp_hash = pow(10, self._exp, _PyHASH_MODULUS)
         else:
@@ -1022,8 +983,7 @@ class Decimal(object):
             # (n & -n).bit_length() - 1 counts trailing zeros in binary
             # representation of n (provided n is nonzero).
             d2 = -self._exp
-            shift2 = min((n & -n).bit_length() - 1, d2)
-            if shift2:
+            if shift2 := min((n & -n).bit_length() - 1, d2):
                 n >>= shift2
                 d2 -= shift2
 
@@ -1036,7 +996,7 @@ class Decimal(object):
     def __repr__(self):
         """Represents the number as an instance of Decimal."""
         # Invariant:  eval(repr(d)) == d
-        return "Decimal('%s')" % str(self)
+        return f"Decimal('{str(self)}')"
 
     def __str__(self, eng=False, context=None):
         """Return string representation of the number in scientific notation.
@@ -1047,11 +1007,11 @@ class Decimal(object):
         sign = ['', '-'][self._sign]
         if self._is_special:
             if self._exp == 'F':
-                return sign + 'Infinity'
+                return f'{sign}Infinity'
             elif self._exp == 'n':
-                return sign + 'NaN' + self._int
+                return f'{sign}NaN{self._int}'
             else: # self._exp == 'N'
-                return sign + 'sNaN' + self._int
+                return f'{sign}sNaN{self._int}'
 
         # number of digits of self._int to left of decimal point
         leftdigits = self._exp + len(self._int)
@@ -1080,7 +1040,7 @@ class Decimal(object):
             fracpart = ''
         else:
             intpart = self._int[:dotplace]
-            fracpart = '.' + self._int[dotplace:]
+            fracpart = f'.{self._int[dotplace:]}'
         if leftdigits == dotplace:
             exp = ''
         else:
@@ -1112,13 +1072,13 @@ class Decimal(object):
         if context is None:
             context = getcontext()
 
-        if not self and context.rounding != ROUND_FLOOR:
+        if self or context.rounding == ROUND_FLOOR:
+            ans = self.copy_negate()
+
+        else:
             # -Decimal('0') is Decimal('0'), not Decimal('-0'), except
             # in ROUND_FLOOR rounding mode.
             ans = self.copy_abs()
-        else:
-            ans = self.copy_negate()
-
         return ans._fix(context)
 
     def __pos__(self, context=None):
@@ -1134,12 +1094,12 @@ class Decimal(object):
         if context is None:
             context = getcontext()
 
-        if not self and context.rounding != ROUND_FLOOR:
-            # + (-0) = 0, except in ROUND_FLOOR rounding mode.
-            ans = self.copy_abs()
-        else:
+        if self or context.rounding == ROUND_FLOOR:
             ans = Decimal(self)
 
+        else:
+            # + (-0) = 0, except in ROUND_FLOOR rounding mode.
+            ans = self.copy_abs()
         return ans._fix(context)
 
     def __abs__(self, round=True, context=None):
@@ -1196,9 +1156,7 @@ class Decimal(object):
             negativezero = 1
 
         if not self and not other:
-            sign = min(self._sign, other._sign)
-            if negativezero:
-                sign = 1
+            sign = 1 if negativezero else min(self._sign, other._sign)
             ans = _dec_from_triple(sign, '0', exp)
             ans = ans._fix(context)
             return ans
@@ -1240,11 +1198,7 @@ class Decimal(object):
             result.sign = 0
         # Now, op1 > abs(op2) > 0
 
-        if op2.sign == 0:
-            result.int = op1.int + op2.int
-        else:
-            result.int = op1.int - op2.int
-
+        result.int = op1.int + op2.int if op2.sign == 0 else op1.int - op2.int
         result.exp = op1.exp
         ans = Decimal(result)
         ans = ans._fix(context)
@@ -1259,8 +1213,7 @@ class Decimal(object):
             return other
 
         if self._is_special or other._is_special:
-            ans = self._check_nans(other, context=context)
-            if ans:
+            if ans := self._check_nans(other, context=context):
                 return ans
 
         # self - other is computed as self + other.copy_negate()

@@ -107,40 +107,44 @@ else:
             _abc_init(cls)
             return cls
 
-        def register(cls, subclass):
+        def register(self, subclass):
             """Register a virtual subclass of an ABC.
 
             Returns the subclass, to allow usage as a class decorator.
             """
-            return _abc_register(cls, subclass)
+            return _abc_register(self, subclass)
 
-        def __instancecheck__(cls, instance):
+        def __instancecheck__(self, instance):
             """Override for isinstance(instance, cls)."""
-            return _abc_instancecheck(cls, instance)
+            return _abc_instancecheck(self, instance)
 
-        def __subclasscheck__(cls, subclass):
+        def __subclasscheck__(self, subclass):
             """Override for issubclass(subclass, cls)."""
-            return _abc_subclasscheck(cls, subclass)
+            return _abc_subclasscheck(self, subclass)
 
-        def _dump_registry(cls, file=None):
+        def _dump_registry(self, file=None):
             """Debug helper to print the ABC registry."""
-            print(f"Class: {cls.__module__}.{cls.__qualname__}", file=file)
+            print(f"Class: {self.__module__}.{self.__qualname__}", file=file)
             print(f"Inv. counter: {get_cache_token()}", file=file)
-            (_abc_registry, _abc_cache, _abc_negative_cache,
-             _abc_negative_cache_version) = _get_dump(cls)
+            (
+                _abc_registry,
+                _abc_cache,
+                _abc_negative_cache,
+                _abc_negative_cache_version,
+            ) = _get_dump(self)
             print(f"_abc_registry: {_abc_registry!r}", file=file)
             print(f"_abc_cache: {_abc_cache!r}", file=file)
             print(f"_abc_negative_cache: {_abc_negative_cache!r}", file=file)
             print(f"_abc_negative_cache_version: {_abc_negative_cache_version!r}",
                   file=file)
 
-        def _abc_registry_clear(cls):
+        def _abc_registry_clear(self):
             """Clear the registry (for debugging or testing)."""
-            _reset_registry(cls)
+            _reset_registry(self)
 
-        def _abc_caches_clear(cls):
+        def _abc_caches_clear(self):
             """Clear the caches (for debugging or testing)."""
-            _reset_caches(cls)
+            _reset_caches(self)
 
 
 def update_abstractmethods(cls):

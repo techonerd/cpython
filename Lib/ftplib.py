@@ -348,14 +348,13 @@ class FTP:
         marker used to tell the server to skip over any data up to the
         given marker.
         """
-        size = None
         if self.passiveserver:
             host, port = self.makepasv()
             conn = socket.create_connection((host, port), self.timeout,
                                             source_address=self.source_address)
             try:
                 if rest is not None:
-                    self.sendcmd("REST %s" % rest)
+                    self.sendcmd(f"REST {rest}")
                 resp = self.sendcmd(cmd)
                 # Some servers apparently send a 200 reply to
                 # a LIST or STOR command, before the 150 reply
@@ -373,7 +372,7 @@ class FTP:
         else:
             with self.makeport() as sock:
                 if rest is not None:
-                    self.sendcmd("REST %s" % rest)
+                    self.sendcmd(f"REST {rest}")
                 resp = self.sendcmd(cmd)
                 # See above.
                 if resp[0] == '2':
@@ -383,9 +382,7 @@ class FTP:
                 conn, sockaddr = sock.accept()
                 if self.timeout is not _GLOBAL_DEFAULT_TIMEOUT:
                     conn.settimeout(self.timeout)
-        if resp[:3] == '150':
-            # this is conditional in case we received a 125
-            size = parse150(resp)
+        size = parse150(resp) if resp[:3] == '150' else None
         return conn, size
 
     def transfercmd(self, cmd, rest=None):
@@ -408,12 +405,12 @@ class FTP:
             # - We want to stop SPAM
             # - We don't want to let ftp sites to discriminate by the user,
             #   host or country.
-            passwd = passwd + 'anonymous@'
-        resp = self.sendcmd('USER ' + user)
+            passwd = f'{passwd}anonymous@'
+        resp = self.sendcmd(f'USER {user}')
         if resp[0] == '3':
-            resp = self.sendcmd('PASS ' + passwd)
+            resp = self.sendcmd(f'PASS {passwd}')
         if resp[0] == '3':
-            resp = self.sendcmd('ACCT ' + acct)
+            resp = self.sendcmd(f'ACCT {acct}')
         if resp[0] != '2':
             raise error_reply(resp)
         return resp
@@ -535,14 +532,14 @@ class FTP:
 
     def acct(self, password):
         '''Send new account name.'''
-        cmd = 'ACCT ' + password
+        cmd = f'ACCT {password}'
         return self.voidcmd(cmd)
 
     def nlst(self, *args):
         '''Return a list of files in a given directory (default the current).'''
         cmd = 'NLST'
         for arg in args:
-            cmd = cmd + (' ' + arg)
+            cmd = f'{cmd} {arg}'
         files = []
         self.retrlines(cmd, files.append)
         return files
@@ -559,7 +556,7 @@ class FTP:
             args, func = args[:-1], args[-1]
         for arg in args:
             if arg:
-                cmd = cmd + (' ' + arg)
+                cmd = f'{cmd} {arg}'
         self.retrlines(cmd, func)
 
     def mlsd(self, path="", facts=[]):
@@ -576,10 +573,7 @@ class FTP:
         '''
         if facts:
             self.sendcmd("OPTS MLST " + ";".join(facts) + ";")
-        if path:
-            cmd = "MLSD %s" % path
-        else:
-            cmd = "MLSD"
+        cmd = f"MLSD {path}" if path else "MLSD"
         lines = []
         self.retrlines(cmd, lines.append)
         for line in lines:
@@ -592,14 +586,14 @@ class FTP:
 
     def rename(self, fromname, toname):
         '''Rename a file.'''
-        resp = self.sendcmd('RNFR ' + fromname)
+        resp = self.sendcmd(f'RNFR {fromname}')
         if resp[0] != '3':
             raise error_reply(resp)
-        return self.voidcmd('RNTO ' + toname)
+        return self.voidcmd(f'RNTO {toname}')
 
     def delete(self, filename):
         '''Delete a file.'''
-        resp = self.sendcmd('DELE ' + filename)
+        resp = self.sendcmd(f'DELE {filename}')
         if resp[:3] in {'250', '200'}:
             return resp
         else:
@@ -615,38 +609,34 @@ class FTP:
                     raise
         elif dirname == '':
             dirname = '.'  # does nothing, but could return error
-        cmd = 'CWD ' + dirname
+        cmd = f'CWD {dirname}'
         return self.voidcmd(cmd)
 
     def size(self, filename):
         '''Retrieve the size of a file.'''
         # The SIZE command is defined in RFC-3659
-        resp = self.sendcmd('SIZE ' + filename)
+        resp = self.sendcmd(f'SIZE {filename}')
         if resp[:3] == '213':
             s = resp[3:].strip()
             return int(s)
 
     def mkd(self, dirname):
         '''Make a directory, return its full pathname.'''
-        resp = self.voidcmd('MKD ' + dirname)
+        resp = self.voidcmd(f'MKD {dirname}')
         # fix around non-compliant implementations such as IIS shipped
         # with Windows server 2003
-        if not resp.startswith('257'):
-            return ''
-        return parse257(resp)
+        return '' if not resp.startswith('257') else parse257(resp)
 
     def rmd(self, dirname):
         '''Remove a directory.'''
-        return self.voidcmd('RMD ' + dirname)
+        return self.voidcmd(f'RMD {dirname}')
 
     def pwd(self):
         '''Return current working directory.'''
         resp = self.voidcmd('PWD')
         # fix around non-compliant implementations such as IIS shipped
         # with Windows server 2003
-        if not resp.startswith('257'):
-            return ''
-        return parse257(resp)
+        return '' if not resp.startswith('257') else parse257(resp)
 
     def quit(self):
         '''Quit, and close the connection.'''
@@ -802,9 +792,7 @@ def parse150(resp):
         _150_re = re.compile(
             r"150 .* \((\d+) bytes\)", re.IGNORECASE | re.ASCII)
     m = _150_re.match(resp)
-    if not m:
-        return None
-    return int(m.group(1))
+    return None if not m else int(m.group(1))
 
 
 _227_re = None
@@ -862,11 +850,11 @@ def parse257(resp):
     n = len(resp)
     while i < n:
         c = resp[i]
-        i = i+1
+        i += 1
         if c == '"':
             if i >= n or resp[i] != '"':
                 break
-            i = i+1
+            i += 1
         dirname = dirname + c
     return dirname
 
@@ -880,7 +868,7 @@ def ftpcp(source, sourcename, target, targetname = '', type = 'I'):
     '''Copy file from one FTP-instance to another.'''
     if not targetname:
         targetname = sourcename
-    type = 'TYPE ' + type
+    type = f'TYPE {type}'
     source.voidcmd(type)
     target.voidcmd(type)
     sourcehost, sourceport = parse227(source.sendcmd('PASV'))
@@ -888,10 +876,10 @@ def ftpcp(source, sourcename, target, targetname = '', type = 'I'):
     # RFC 959: the user must "listen" [...] BEFORE sending the
     # transfer request.
     # So: STOR before RETR, because here the target is a "user".
-    treply = target.sendcmd('STOR ' + targetname)
+    treply = target.sendcmd(f'STOR {targetname}')
     if treply[:3] not in {'125', '150'}:
         raise error_proto  # RFC 959
-    sreply = source.sendcmd('RETR ' + sourcename)
+    sreply = source.sendcmd(f'RETR {sourcename}')
     if sreply[:3] not in {'125', '150'}:
         raise error_proto  # RFC 959
     source.voidresp()
@@ -945,13 +933,13 @@ def test():
             ftp.dir(file[2:])
         elif file[:2] == '-d':
             cmd = 'CWD'
-            if file[2:]: cmd = cmd + ' ' + file[2:]
+            if file[2:]:
+                cmd = f'{cmd} {file[2:]}'
             resp = ftp.sendcmd(cmd)
         elif file == '-p':
             ftp.set_pasv(not ftp.passiveserver)
         else:
-            ftp.retrbinary('RETR ' + file, \
-                           sys.stdout.write, 1024)
+            ftp.retrbinary(f'RETR {file}', sys.stdout.write, 1024)
     ftp.quit()
 
 

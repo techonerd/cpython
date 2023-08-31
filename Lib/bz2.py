@@ -263,9 +263,7 @@ class BZ2File(_compression.BaseStream):
     def tell(self):
         """Return the current file position."""
         self._check_not_closed()
-        if self._mode == _MODE_READ:
-            return self._buffer.tell()
-        return self._pos
+        return self._buffer.tell() if self._mode == _MODE_READ else self._pos
 
 
 def open(filename, mode="rb", compresslevel=9,

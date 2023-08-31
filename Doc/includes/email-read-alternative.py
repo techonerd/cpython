@@ -43,21 +43,28 @@ if ans.lower()[0] == 'n':
 # We can extract the richest alternative in order to display it:
 richest = msg.get_body()
 partfiles = {}
-if richest['content-type'].maintype == 'text':
-    if richest['content-type'].subtype == 'plain':
-        for line in richest.get_content().splitlines():
-            print(line)
-        sys.exit()
-    elif richest['content-type'].subtype == 'html':
-        body = richest
-    else:
-        print("Don't know how to display {}".format(richest.get_content_type()))
-        sys.exit()
-elif richest['content-type'].content_type == 'multipart/related':
+if (
+    richest['content-type'].maintype == 'text'
+    and richest['content-type'].subtype == 'plain'
+):
+    for line in richest.get_content().splitlines():
+        print(line)
+    sys.exit()
+elif (
+    richest['content-type'].maintype == 'text'
+    and richest['content-type'].subtype == 'html'
+):
+    body = richest
+elif (
+    richest['content-type'].maintype == 'text'
+    or richest['content-type'].content_type != 'multipart/related'
+):
+    print(f"Don't know how to display {richest.get_content_type()}")
+    sys.exit()
+else:
     body = richest.get_body(preferencelist=('html'))
     for part in richest.iter_attachments():
-        fn = part.get_filename()
-        if fn:
+        if fn := part.get_filename():
             extension = os.path.splitext(part.get_filename())[1]
         else:
             extension = mimetypes.guess_extension(part.get_content_type())
@@ -65,9 +72,6 @@ elif richest['content-type'].content_type == 'multipart/related':
             f.write(part.get_content())
             # again strip the <> to go from email form of cid to html form.
             partfiles[part['content-id'][1:-1]] = f.name
-else:
-    print("Don't know how to display {}".format(richest.get_content_type()))
-    sys.exit()
 with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
     f.write(magic_html_parser(body.get_content(), partfiles))
 webbrowser.open(f.name)

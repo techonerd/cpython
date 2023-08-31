@@ -16,10 +16,10 @@ headers = Parser(policy=default).parsestr(
         'Body would go here\n')
 
 #  Now the header items can be accessed as a dictionary:
-print('To: {}'.format(headers['to']))
-print('From: {}'.format(headers['from']))
-print('Subject: {}'.format(headers['subject']))
+print(f"To: {headers['to']}")
+print(f"From: {headers['from']}")
+print(f"Subject: {headers['subject']}")
 
 # You can also access the parts of the addresses:
-print('Recipient username: {}'.format(headers['to'].addresses[0].username))
-print('Sender name: {}'.format(headers['from'].addresses[0].display_name))
+print(f"Recipient username: {headers['to'].addresses[0].username}")
+print(f"Sender name: {headers['from'].addresses[0].display_name}")

@@ -143,8 +143,7 @@ class DictWriter:
         self.restval = restval          # for writing short dicts
         extrasaction = extrasaction.lower()
         if extrasaction not in ("raise", "ignore"):
-            raise ValueError("extrasaction (%s) must be 'raise' or 'ignore'"
-                             % extrasaction)
+            raise ValueError(f"extrasaction ({extrasaction}) must be 'raise' or 'ignore'")
         self.extrasaction = extrasaction
         self.writer = writer(f, dialect, *args, **kwds)
 
@@ -154,8 +153,7 @@ class DictWriter:
 
     def _dict_to_list(self, rowdict):
         if self.extrasaction == "raise":
-            wrong_fields = rowdict.keys() - self.fieldnames
-            if wrong_fields:
+            if wrong_fields := rowdict.keys() - self.fieldnames:
                 raise ValueError("dict contains fields not in fieldnames: "
                                  + ", ".join([repr(x) for x in wrong_fields]))
         return (rowdict.get(key, self.restval) for key in self.fieldnames)
@@ -272,15 +270,11 @@ class Sniffer:
         # double quoted format
         dq_regexp = re.compile(
                                r"((%(delim)s)|^)\W*%(quote)s[^%(delim)s\n]*%(quote)s[^%(delim)s\n]*%(quote)s\W*((%(delim)s)|$)" % \
-                               {'delim':re.escape(delim), 'quote':quotechar}, re.MULTILINE)
+                                   {'delim':re.escape(delim), 'quote':quotechar}, re.MULTILINE)
 
 
 
-        if dq_regexp.search(data):
-            doublequote = True
-        else:
-            doublequote = False
-
+        doublequote = bool(dq_regexp.search(data))
         return (quotechar, doublequote, delim, skipinitialspace)
 
 
@@ -314,6 +308,8 @@ class Sniffer:
         modes = {}
         delims = {}
         start, end = 0, chunkLength
+        # minimum consistency threshold
+        threshold = 0.9
         while start < len(data):
             iteration += 1
             for line in data[start:end]:
@@ -325,7 +321,7 @@ class Sniffer:
                     metaFrequency[freq] = metaFrequency.get(freq, 0) + 1
                     charFrequency[char] = metaFrequency
 
-            for char in charFrequency.keys():
+            for char in charFrequency:
                 items = list(charFrequency[char].items())
                 if len(items) == 1 and items[0][0] == 0:
                     continue
@@ -345,9 +341,7 @@ class Sniffer:
             total = float(min(chunkLength * iteration, len(data)))
             # (rows of consistent data) / (number of rows) = 100%
             consistency = 1.0
-            # minimum consistency threshold
-            threshold = 0.9
-            while len(delims) == 0 and consistency >= threshold:
+            while not delims and consistency >= threshold:
                 for k, v in modeList:
                     if v[0] > 0 and v[1] > 0:
                         if ((v[1]/total) >= consistency and
@@ -371,7 +365,7 @@ class Sniffer:
         # if there's more than one, fall back to a 'preferred' list
         if len(delims) > 1:
             for d in self.preferred:
-                if d in delims.keys():
+                if d in delims:
                     skipinitialspace = (data[0].count(d) ==
                                         data[0].count("%c " % d))
                     return (d, skipinitialspace)
@@ -402,9 +396,7 @@ class Sniffer:
         header = next(rdr) # assume first row is header
 
         columns = len(header)
-        columnTypes = {}
-        for i in range(columns): columnTypes[i] = None
-
+        columnTypes = {i: None for i in range(columns)}
         checked = 0
         for row in rdr:
             # arbitrary number of rows to check, to keep it sane

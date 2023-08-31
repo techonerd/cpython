@@ -45,8 +45,7 @@ class ParserBase:
         if i >= j:
             return j
         rawdata = self.rawdata
-        nlines = rawdata.count("\n", i, j)
-        if nlines:
+        if nlines := rawdata.count("\n", i, j):
             self.lineno = self.lineno + nlines
             pos = rawdata.rindex("\n", i, j) # Should not fail
             self.offset = j-(pos+1)
@@ -110,10 +109,10 @@ class ParserBase:
                     self.unknown_decl(data)
                 return j + 1
             if c in "\"'":
-                m = _declstringlit_match(rawdata, j)
-                if not m:
+                if m := _declstringlit_match(rawdata, j):
+                    j = m.end()
+                else:
                     return -1 # incomplete
-                j = m.end()
             elif c in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
                 name, j = self._scan_name(j, i)
             elif c in self._decl_otherchars:
@@ -127,7 +126,7 @@ class ParserBase:
                     # also in data attribute specifications of attlist declaration
                     # also link type declaration subsets in linktype declarations
                     # also link attribute specification lists in link declarations
-                    raise AssertionError("unsupported '[' char in %s declaration" % decltype)
+                    raise AssertionError(f"unsupported '[' char in {decltype} declaration")
                 else:
                     raise AssertionError("unexpected '[' char in declaration")
             else:
@@ -212,7 +211,7 @@ class ParserBase:
                         "unknown declaration %r in internal subset" % name
                     )
                 # handle the individual names
-                meth = getattr(self, "_parse_doctype_" + name)
+                meth = getattr(self, f"_parse_doctype_{name}")
                 j = meth(j, declstartpos)
                 if j < 0:
                     return j
@@ -230,13 +229,12 @@ class ParserBase:
                 j = j + 1
                 while j < n and rawdata[j].isspace():
                     j = j + 1
-                if j < n:
-                    if rawdata[j] == ">":
-                        return j
-                    self.updatepos(declstartpos, j)
-                    raise AssertionError("unexpected char after internal subset")
-                else:
+                if j >= n:
                     return -1
+                if rawdata[j] == ">":
+                    return j
+                self.updatepos(declstartpos, j)
+                raise AssertionError("unexpected char after internal subset")
             elif c.isspace():
                 j = j + 1
             else:
@@ -252,9 +250,7 @@ class ParserBase:
             return -1
         # style content model; just skip until '>'
         rawdata = self.rawdata
-        if '>' in rawdata[j:]:
-            return rawdata.find(">", j) + 1
-        return -1
+        return rawdata.find(">", j) + 1 if '>' in rawdata[j:] else -1
 
     # Internal -- scan past <!ATTLIST declarations
     def _parse_doctype_attlist(self, i, declstartpos):
@@ -291,8 +287,7 @@ class ParserBase:
             if not c:
                 return -1
             if c in "'\"":
-                m = _declstringlit_match(rawdata, j)
-                if m:
+                if m := _declstringlit_match(rawdata, j):
                     j = m.end()
                 else:
                     return -1
@@ -327,10 +322,10 @@ class ParserBase:
             if c == '>':
                 return j + 1
             if c in "'\"":
-                m = _declstringlit_match(rawdata, j)
-                if not m:
+                if m := _declstringlit_match(rawdata, j):
+                    j = m.end()
+                else:
                     return -1
-                j = m.end()
             else:
                 name, j = self._scan_name(j, declstartpos)
                 if j < 0:
@@ -359,8 +354,7 @@ class ParserBase:
             if not c:
                 return -1
             if c in "'\"":
-                m = _declstringlit_match(rawdata, j)
-                if m:
+                if m := _declstringlit_match(rawdata, j):
                     j = m.end()
                 else:
                     return -1    # incomplete
@@ -378,13 +372,10 @@ class ParserBase:
         n = len(rawdata)
         if i == n:
             return None, -1
-        m = _declname_match(rawdata, i)
-        if m:
+        if m := _declname_match(rawdata, i):
             s = m.group()
             name = s.strip()
-            if (i + len(s)) == n:
-                return None, -1  # end of buffer
-            return name.lower(), m.end()
+            return (None, -1) if (i + len(s)) == n else (name.lower(), m.end())
         else:
             self.updatepos(declstartpos, i)
             raise AssertionError(

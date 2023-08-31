@@ -9,10 +9,7 @@ import sys
 
 def calculate(func, args):
     result = func(*args)
-    return '%s says that %s%s = %s' % (
-        multiprocessing.current_process().name,
-        func.__name__, args, result
-        )
+    return f'{multiprocessing.current_process().name} says that {func.__name__}{args} = {result}'
 
 def calculatestar(args):
     return calculate(*args)
@@ -106,8 +103,7 @@ def test():
             try:
                 x = next(it)
             except ZeroDivisionError:
-                if i == 5:
-                    pass
+                pass
             except StopIteration:
                 break
             else:

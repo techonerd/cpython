@@ -91,9 +91,7 @@ def get_diff_lines(ref_a: str, ref_b: str, file: Path) -> list[int]:
     line_ranges = [
         range(line_b, line_b + added) for line_b, added in line_ints
     ]
-    line_numbers = list(itertools.chain(*line_ranges))
-
-    return line_numbers
+    return list(itertools.chain(*line_ranges))
 
 
 def get_para_line_numbers(file_obj: TextIO) -> list[list[int]]:
@@ -123,8 +121,7 @@ def filter_and_parse_warnings(
         WARNING_PATTERN.fullmatch(warning.strip())
         for warning in filtered_warnings
     ]
-    non_null_matches = [warning for warning in warning_matches if warning]
-    return non_null_matches
+    return [warning for warning in warning_matches if warning]
 
 
 def filter_warnings_by_diff(
@@ -143,12 +140,11 @@ def filter_warnings_by_diff(
     warnings_infile = [
         warning for warning in warnings if str(file) in warning["file"]
     ]
-    warnings_touched = [
+    return [
         warning
         for warning in warnings_infile
         if int(warning["line"]) in touched_para_lines
     ]
-    return warnings_touched
 
 
 def process_touched_warnings(
@@ -172,11 +168,7 @@ def process_touched_warnings(
         filter_warnings_by_diff(warnings_modified, ref_a, ref_b, file)
         for file in modified_files_warned
     ]
-    warnings_touched = warnings_added + list(
-        itertools.chain(*warnings_modified_touched)
-    )
-
-    return warnings_touched
+    return warnings_added + list(itertools.chain(*warnings_modified_touched))
 
 
 def annotate_diff(
@@ -215,8 +207,7 @@ def fail_if_regression(
         if rst.parts[1] not in EXCLUDE_SUBDIRS
     }
     should_be_clean = all_rst - files_with_expected_nits - EXCLUDE_FILES
-    problem_files = sorted(should_be_clean & files_with_nits)
-    if problem_files:
+    if problem_files := sorted(should_be_clean & files_with_nits):
         print("\nError: must not contain warnings:\n")
         for filename in problem_files:
             print(filename)
@@ -235,8 +226,7 @@ def fail_if_improved(
     We may have fixed warnings in some files so that the files are now completely clean.
     Good news! Let's add them to .nitignore to prevent regression.
     """
-    files_with_no_nits = files_with_expected_nits - files_with_nits
-    if files_with_no_nits:
+    if files_with_no_nits := files_with_expected_nits - files_with_nits:
         print("\nCongratulations! You improved:\n")
         for filename in sorted(files_with_no_nits):
             print(filename)

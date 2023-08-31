@@ -140,7 +140,7 @@ class DecompressReader(io.RawIOBase):
                     pass
             offset = self._size + offset
         else:
-            raise ValueError("Invalid value for whence: {}".format(whence))
+            raise ValueError(f"Invalid value for whence: {whence}")
 
         # Make it so that offset is the number of bytes to skip forward.
         if offset < self._pos:
@@ -150,11 +150,11 @@ class DecompressReader(io.RawIOBase):
 
         # Read and discard data until we reach the desired position.
         while offset > 0:
-            data = self.read(min(io.DEFAULT_BUFFER_SIZE, offset))
-            if not data:
-                break
-            offset -= len(data)
+            if data := self.read(min(io.DEFAULT_BUFFER_SIZE, offset)):
+                offset -= len(data)
 
+            else:
+                break
         return self._pos
 
     def tell(self):

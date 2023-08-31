@@ -161,14 +161,14 @@ for excname in MULTIPROCESSING_EXCEPTIONS:
     NAME_MAPPING[("multiprocessing", excname)] = ("multiprocessing.context", excname)
 
 # Same, but for 3.x to 2.x
-REVERSE_IMPORT_MAPPING = dict((v, k) for (k, v) in IMPORT_MAPPING.items())
+REVERSE_IMPORT_MAPPING = {v: k for (k, v) in IMPORT_MAPPING.items()}
 assert len(REVERSE_IMPORT_MAPPING) == len(IMPORT_MAPPING)
-REVERSE_NAME_MAPPING = dict((v, k) for (k, v) in NAME_MAPPING.items())
+REVERSE_NAME_MAPPING = {v: k for (k, v) in NAME_MAPPING.items()}
 assert len(REVERSE_NAME_MAPPING) == len(NAME_MAPPING)
 
 # Non-mutual mappings.
 
-IMPORT_MAPPING.update({
+IMPORT_MAPPING |= {
     'cPickle': 'pickle',
     '_elementtree': 'xml.etree.ElementTree',
     'FileDialog': 'tkinter.filedialog',
@@ -181,46 +181,58 @@ IMPORT_MAPPING.update({
     'UserList': 'collections',
     'UserString': 'collections',
     'whichdb': 'dbm',
-    'StringIO':  'io',
+    'StringIO': 'io',
     'cStringIO': 'io',
-})
+}
 
-REVERSE_IMPORT_MAPPING.update({
+REVERSE_IMPORT_MAPPING |= {
     '_bz2': 'bz2',
     '_dbm': 'dbm',
     '_functools': 'functools',
     '_gdbm': 'gdbm',
     '_pickle': 'pickle',
-})
+}
 
-NAME_MAPPING.update({
+NAME_MAPPING |= {
     ('__builtin__', 'basestring'): ('builtins', 'str'),
     ('exceptions', 'StandardError'): ('builtins', 'Exception'),
     ('UserDict', 'UserDict'): ('collections', 'UserDict'),
     ('socket', '_socketobject'): ('socket', 'SocketType'),
-})
+}
 
-REVERSE_NAME_MAPPING.update({
+REVERSE_NAME_MAPPING |= {
     ('_functools', 'reduce'): ('__builtin__', 'reduce'),
     ('tkinter.filedialog', 'FileDialog'): ('FileDialog', 'FileDialog'),
     ('tkinter.filedialog', 'LoadFileDialog'): ('FileDialog', 'LoadFileDialog'),
     ('tkinter.filedialog', 'SaveFileDialog'): ('FileDialog', 'SaveFileDialog'),
     ('tkinter.simpledialog', 'SimpleDialog'): ('SimpleDialog', 'SimpleDialog'),
     ('xmlrpc.server', 'ServerHTMLDoc'): ('DocXMLRPCServer', 'ServerHTMLDoc'),
-    ('xmlrpc.server', 'XMLRPCDocGenerator'):
-        ('DocXMLRPCServer', 'XMLRPCDocGenerator'),
-    ('xmlrpc.server', 'DocXMLRPCRequestHandler'):
-        ('DocXMLRPCServer', 'DocXMLRPCRequestHandler'),
-    ('xmlrpc.server', 'DocXMLRPCServer'):
-        ('DocXMLRPCServer', 'DocXMLRPCServer'),
-    ('xmlrpc.server', 'DocCGIXMLRPCRequestHandler'):
-        ('DocXMLRPCServer', 'DocCGIXMLRPCRequestHandler'),
-    ('http.server', 'SimpleHTTPRequestHandler'):
-        ('SimpleHTTPServer', 'SimpleHTTPRequestHandler'),
-    ('http.server', 'CGIHTTPRequestHandler'):
-        ('CGIHTTPServer', 'CGIHTTPRequestHandler'),
+    ('xmlrpc.server', 'XMLRPCDocGenerator'): (
+        'DocXMLRPCServer',
+        'XMLRPCDocGenerator',
+    ),
+    ('xmlrpc.server', 'DocXMLRPCRequestHandler'): (
+        'DocXMLRPCServer',
+        'DocXMLRPCRequestHandler',
+    ),
+    ('xmlrpc.server', 'DocXMLRPCServer'): (
+        'DocXMLRPCServer',
+        'DocXMLRPCServer',
+    ),
+    ('xmlrpc.server', 'DocCGIXMLRPCRequestHandler'): (
+        'DocXMLRPCServer',
+        'DocCGIXMLRPCRequestHandler',
+    ),
+    ('http.server', 'SimpleHTTPRequestHandler'): (
+        'SimpleHTTPServer',
+        'SimpleHTTPRequestHandler',
+    ),
+    ('http.server', 'CGIHTTPRequestHandler'): (
+        'CGIHTTPServer',
+        'CGIHTTPRequestHandler',
+    ),
     ('_socket', 'socket'): ('socket', '_socketobject'),
-})
+}
 
 PYTHON3_OSERROR_EXCEPTIONS = (
     'BrokenPipeError',

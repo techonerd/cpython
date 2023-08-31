@@ -78,10 +78,7 @@ class Annotations:
                     entry = self.refcount_data[function]
                 except KeyError:
                     entry = self.refcount_data[function] = RCEntry(function)
-                if not refcount or refcount == "null":
-                    refcount = None
-                else:
-                    refcount = int(refcount)
+                refcount = None if not refcount or refcount == "null" else int(refcount)
                 # Update the entry with the new parameter or the result
                 # information.
                 if arg:
@@ -110,17 +107,7 @@ class Annotations:
 
             objtype = par['objtype']
 
-            # Stable ABI annotation. These have two forms:
-            #   Part of the [Stable ABI](link).
-            #   Part of the [Stable ABI](link) since version X.Y.
-            # For structs, there's some more info in the message:
-            #   Part of the [Limited API](link) (as an opaque struct).
-            #   Part of the [Stable ABI](link) (including all members).
-            #   Part of the [Limited API](link) (Only some members are part
-            #       of the stable ABI.).
-            # ... all of which can have "since version X.Y" appended.
-            record = self.stable_abi_data.get(name)
-            if record:
+            if record := self.stable_abi_data.get(name):
                 if record['role'] != objtype:
                     raise ValueError(
                         f"Object type mismatch in limited API annotation "
@@ -138,16 +125,13 @@ class Annotations:
                 else:
                     ref_node += nodes.Text('Stable ABI')
                 emph_node += ref_node
-                if struct_abi_kind == 'opaque':
-                    emph_node += nodes.Text(' (as an opaque struct)')
-                elif struct_abi_kind == 'full-abi':
+                if struct_abi_kind == 'full-abi':
                     emph_node += nodes.Text(' (including all members)')
+                elif struct_abi_kind == 'opaque':
+                    emph_node += nodes.Text(' (as an opaque struct)')
                 if record['ifdef_note']:
                     emph_node += nodes.Text(' ' + record['ifdef_note'])
-                if stable_added == '3.2':
-                    # Stable ABI was introduced in 3.2.
-                    pass
-                else:
+                if stable_added != '3.2':
                     emph_node += nodes.Text(f' since version {stable_added}')
                 emph_node += nodes.Text('.')
                 if struct_abi_kind == 'members':

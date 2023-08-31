@@ -13,14 +13,7 @@ class DBPickler(pickle.Pickler):
     def persistent_id(self, obj):
         # Instead of pickling MemoRecord as a regular class instance, we emit a
         # persistent ID.
-        if isinstance(obj, MemoRecord):
-            # Here, our persistent ID is simply a tuple, containing a tag and a
-            # key, which refers to a specific record in the database.
-            return ("MemoRecord", obj.key)
-        else:
-            # If obj does not have a persistent ID, return None. This means obj
-            # needs to be pickled as usual.
-            return None
+        return ("MemoRecord", obj.key) if isinstance(obj, MemoRecord) else None
 
 
 class DBUnpickler(pickle.Unpickler):

@@ -18,8 +18,7 @@ def worker(input, output):
 
 def calculate(func, args):
     result = func(*args)
-    return '%s says that %s%s = %s' % \
-        (current_process().name, func.__name__, args, result)
+    return f'{current_process().name} says that {func.__name__}{args} = {result}'
 
 #
 # Functions referenced by tasks
@@ -51,12 +50,12 @@ def test():
         task_queue.put(task)
 
     # Start worker processes
-    for i in range(NUMBER_OF_PROCESSES):
+    for _ in range(NUMBER_OF_PROCESSES):
         Process(target=worker, args=(task_queue, done_queue)).start()
 
     # Get and print results
     print('Unordered results:')
-    for i in range(len(TASKS1)):
+    for _ in TASKS1:
         print('\t', done_queue.get())
 
     # Add more tasks using `put()`
@@ -64,11 +63,11 @@ def test():
         task_queue.put(task)
 
     # Get and print some more results
-    for i in range(len(TASKS2)):
+    for _ in range(len(TASKS2)):
         print('\t', done_queue.get())
 
     # Tell child processes to stop
-    for i in range(NUMBER_OF_PROCESSES):
+    for _ in range(NUMBER_OF_PROCESSES):
         task_queue.put('STOP')
 
 

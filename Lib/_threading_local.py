@@ -151,7 +151,7 @@ class _localimpl:
         # The key used in the Thread objects' attribute dicts.
         # We keep it a string for speed but make it unlikely to clash with
         # a "real" attribute.
-        self.key = '_threading_local._localimpl.' + str(id(self))
+        self.key = f'_threading_local._localimpl.{id(self)}'
         # { id(Thread) -> (ref(Thread), thread-local dict) }
         self.dicts = {}
 
