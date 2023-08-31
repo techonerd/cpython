@@ -65,9 +65,9 @@ def _reduce_ex(self, proto):
         base = object # not really reachable
     if base is object:
         state = None
+    elif base is cls:
+        raise TypeError(f"cannot pickle {cls.__name__!r} object")
     else:
-        if base is cls:
-            raise TypeError(f"cannot pickle {cls.__name__!r} object")
         state = base(self)
     args = (cls, base, state)
     try:
@@ -88,10 +88,7 @@ def _reduce_ex(self, proto):
             raise TypeError("a class that defines __slots__ without "
                             "defining __getstate__ cannot be pickled")
         dict = getstate()
-    if dict:
-        return _reconstructor, args, dict
-    else:
-        return _reconstructor, args
+    return (_reconstructor, args, dict) if dict else (_reconstructor, args)
 
 # Helper for __reduce_ex__ protocol 2
 
@@ -122,10 +119,7 @@ def _slotnames(cls):
 
     # Not cached -- calculate the value
     names = []
-    if not hasattr(cls, "__slots__"):
-        # This class has no slots
-        pass
-    else:
+    if hasattr(cls, "__slots__"):
         # Slots found -- gather slot names from all base classes
         for c in cls.__mro__:
             if "__slots__" in c.__dict__:
@@ -137,11 +131,9 @@ def _slotnames(cls):
                     # special descriptors
                     if name in ("__dict__", "__weakref__"):
                         continue
-                    # mangled names
                     elif name.startswith('__') and not name.endswith('__'):
-                        stripped = c.__name__.lstrip('_')
-                        if stripped:
-                            names.append('_%s%s' % (stripped, name))
+                        if stripped := c.__name__.lstrip('_'):
+                            names.append(f'_{stripped}{name}')
                         else:
                             names.append(name)
                     else:
@@ -180,11 +172,13 @@ def add_extension(module, name, code):
         _inverted_registry.get(code) == key):
         return # Redundant registrations are benign
     if key in _extension_registry:
-        raise ValueError("key %s is already registered with code %s" %
-                         (key, _extension_registry[key]))
+        raise ValueError(
+            f"key {key} is already registered with code {_extension_registry[key]}"
+        )
     if code in _inverted_registry:
-        raise ValueError("code %s is already in use for key %s" %
-                         (code, _inverted_registry[code]))
+        raise ValueError(
+            f"code {code} is already in use for key {_inverted_registry[code]}"
+        )
     _extension_registry[key] = code
     _inverted_registry[code] = key
 
@@ -193,8 +187,7 @@ def remove_extension(module, name, code):
     key = (module, name)
     if (_extension_registry.get(key) != code or
         _inverted_registry.get(code) != key):
-        raise ValueError("key %s is not registered with code %s" %
-                         (key, code))
+        raise ValueError(f"key {key} is not registered with code {code}")
     del _extension_registry[key]
     del _inverted_registry[code]
     if code in _extension_cache:

@@ -81,10 +81,7 @@ def getopt(args, shortopts, longopts = []):
     """
 
     opts = []
-    if isinstance(longopts, str):
-        longopts = [longopts]
-    else:
-        longopts = list(longopts)
+    longopts = [longopts] if isinstance(longopts, str) else list(longopts)
     while args and args[0].startswith('-') and args[0] != '-':
         if args[0] == '--':
             args = args[1:]
@@ -113,11 +110,7 @@ def gnu_getopt(args, shortopts, longopts = []):
 
     opts = []
     prog_args = []
-    if isinstance(longopts, str):
-        longopts = [longopts]
-    else:
-        longopts = list(longopts)
-
+    longopts = [longopts] if isinstance(longopts, str) else list(longopts)
     # Allow options after non-option arguments?
     if shortopts.startswith('+'):
         shortopts = shortopts[1:]
@@ -136,13 +129,12 @@ def gnu_getopt(args, shortopts, longopts = []):
             opts, args = do_longs(opts, args[0][2:], longopts, args[1:])
         elif args[0][:1] == '-' and args[0] != '-':
             opts, args = do_shorts(opts, args[0][1:], shortopts, args[1:])
+        elif all_options_first:
+            prog_args += args
+            break
         else:
-            if all_options_first:
-                prog_args += args
-                break
-            else:
-                prog_args.append(args[0])
-                args = args[1:]
+            prog_args.append(args[0])
+            args = args[1:]
 
     return opts, prog_args
 
@@ -162,7 +154,7 @@ def do_longs(opts, opt, longopts, args):
             optarg, args = args[0], args[1:]
     elif optarg is not None:
         raise GetoptError(_('option --%s must not have an argument') % opt, opt)
-    opts.append(('--' + opt, optarg or ''))
+    opts.append((f'--{opt}', optarg or ''))
     return opts, args
 
 # Return:
@@ -175,7 +167,7 @@ def long_has_args(opt, longopts):
     # Is there an exact match?
     if opt in possibilities:
         return False, opt
-    elif opt + '=' in possibilities:
+    elif f'{opt}=' in possibilities:
         return True, opt
     # No exact match, so better be unique.
     if len(possibilities) > 1:
@@ -201,7 +193,7 @@ def do_shorts(opts, optstring, shortopts, args):
             optarg, optstring = optstring, ''
         else:
             optarg = ''
-        opts.append(('-' + opt, optarg))
+        opts.append((f'-{opt}', optarg))
     return opts, args
 
 def short_has_arg(opt, shortopts):

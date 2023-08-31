@@ -109,10 +109,7 @@ class HMAC:
 
     @property
     def name(self):
-        if self._hmac:
-            return self._hmac.name
-        else:
-            return f"hmac-{self._inner.name}"
+        return self._hmac.name if self._hmac else f"hmac-{self._inner.name}"
 
     def update(self, msg):
         """Feed data from msg into this hashing object."""
@@ -143,10 +140,9 @@ class HMAC:
         """
         if self._hmac:
             return self._hmac
-        else:
-            h = self._outer.copy()
-            h.update(self._inner.digest())
-            return h
+        h = self._outer.copy()
+        h.update(self._inner.digest())
+        return h
 
     def digest(self):
         """Return the hash value of this hashing object.

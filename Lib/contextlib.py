@@ -733,11 +733,7 @@ class AsyncExitStack(_BaseExitStack, AbstractAsyncContextManager):
                     exc_details = None, None, None
                 else:
                     exc_details = type(exc), exc, exc.__traceback__
-                if is_sync:
-                    cb_suppress = cb(*exc_details)
-                else:
-                    cb_suppress = await cb(*exc_details)
-
+                cb_suppress = cb(*exc_details) if is_sync else await cb(*exc_details)
                 if cb_suppress:
                     suppressed_exc = True
                     pending_raise = False

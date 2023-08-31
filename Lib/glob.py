@@ -42,19 +42,13 @@ def iglob(pathname, *, root_dir=None, dir_fd=None, recursive=False,
     """
     sys.audit("glob.glob", pathname, recursive)
     sys.audit("glob.glob/2", pathname, recursive, root_dir, dir_fd)
-    if root_dir is not None:
-        root_dir = os.fspath(root_dir)
-    else:
-        root_dir = pathname[:0]
+    root_dir = os.fspath(root_dir) if root_dir is not None else pathname[:0]
     it = _iglob(pathname, root_dir, dir_fd, recursive, False,
                 include_hidden=include_hidden)
     if not pathname or recursive and _isrecursive(pathname[:2]):
-        try:
-            s = next(it)  # skip empty string
-            if s:
+        with contextlib.suppress(StopIteration):
+            if s := next(it):
                 it = itertools.chain((s,), it)
-        except StopIteration:
-            pass
     return it
 
 def _iglob(pathname, root_dir, dir_fd, recursive, dironly,
@@ -62,13 +56,13 @@ def _iglob(pathname, root_dir, dir_fd, recursive, dironly,
     dirname, basename = os.path.split(pathname)
     if not has_magic(pathname):
         assert not dironly
-        if basename:
-            if _lexists(_join(root_dir, pathname), dir_fd):
-                yield pathname
-        else:
-            # Patterns ending with a slash should match only directories
-            if _isdir(_join(root_dir, dirname), dir_fd):
-                yield pathname
+        if (
+            basename
+            and _lexists(_join(root_dir, pathname), dir_fd)
+            or not basename
+            and _isdir(_join(root_dir, dirname), dir_fd)
+        ):
+            yield pathname
         return
     if not dirname:
         if recursive and _isrecursive(basename):
@@ -87,10 +81,7 @@ def _iglob(pathname, root_dir, dir_fd, recursive, dironly,
     else:
         dirs = [dirname]
     if has_magic(basename):
-        if recursive and _isrecursive(basename):
-            glob_in_dir = _glob2
-        else:
-            glob_in_dir = _glob1
+        glob_in_dir = _glob2 if recursive and _isrecursive(basename) else _glob1
     else:
         glob_in_dir = _glob0
     for dirname in dirs:
@@ -109,14 +100,13 @@ def _glob1(dirname, pattern, dir_fd, dironly, include_hidden=False):
     return fnmatch.filter(names, pattern)
 
 def _glob0(dirname, basename, dir_fd, dironly, include_hidden=False):
-    if basename:
-        if _lexists(_join(dirname, basename), dir_fd):
-            return [basename]
-    else:
-        # `os.path.split()` returns an empty basename for paths ending with a
-        # directory separator.  'q*x/' should match only directories.
-        if _isdir(dirname, dir_fd):
-            return [basename]
+    if (
+        basename
+        and _lexists(_join(dirname, basename), dir_fd)
+        or not basename
+        and _isdir(dirname, dir_fd)
+    ):
+        return [basename]
     return []
 
 # Following functions are not public but can be used by third-party code.
@@ -158,14 +148,12 @@ def _iterdir(dirname, dir_fd, dironly):
         try:
             with os.scandir(arg) as it:
                 for entry in it:
-                    try:
+                    with contextlib.suppress(OSError):
                         if not dironly or entry.is_dir():
                             if fsencode is not None:
                                 yield fsencode(entry.name)
                             else:
                                 yield entry.name
-                    except OSError:
-                        pass
         finally:
             if fd is not None:
                 os.close(fd)
@@ -230,10 +218,7 @@ def _ishidden(path):
     return path[0] in ('.', b'.'[0])
 
 def _isrecursive(pattern):
-    if isinstance(pattern, bytes):
-        return pattern == b'**'
-    else:
-        return pattern == '**'
+    return pattern == b'**' if isinstance(pattern, bytes) else pattern == '**'
 
 def escape(pathname):
     """Escape all special characters.

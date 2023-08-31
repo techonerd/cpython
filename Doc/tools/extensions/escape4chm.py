@@ -17,10 +17,7 @@ def _process(string):
         codepoint = ord(matchobj.group(0))
 
         name = codepoint2name.get(codepoint)
-        if name is None:
-            return '&#%d;' % codepoint
-        else:
-            return '&%s;' % name
+        return '&#%d;' % codepoint if name is None else f'&{name};'
 
     return re.sub(r'[^\x00-\x7F]', escape, string)
 
@@ -42,9 +39,9 @@ def fixup_keywords(app, exception):
     getLogger(__name__).info('fixing HTML escapes in keywords file...')
     outdir = pathlib.Path(app.builder.outdir)
     outname = app.builder.config.htmlhelp_basename
-    with open(outdir / (outname + '.hhk'), 'rb') as f:
+    with open(outdir / f'{outname}.hhk', 'rb') as f:
         index = f.read()
-    with open(outdir / (outname + '.hhk'), 'wb') as f:
+    with open(outdir / f'{outname}.hhk', 'wb') as f:
         f.write(index.replace(b'&#x27;', b'&#39;'))
 
 def setup(app):

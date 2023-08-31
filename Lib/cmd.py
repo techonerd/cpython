@@ -84,14 +84,8 @@ class Cmd:
         sys.stdin and sys.stdout are used.
 
         """
-        if stdin is not None:
-            self.stdin = stdin
-        else:
-            self.stdin = sys.stdin
-        if stdout is not None:
-            self.stdout = stdout
-        else:
-            self.stdout = sys.stdout
+        self.stdin = stdin if stdin is not None else sys.stdin
+        self.stdout = stdout if stdout is not None else sys.stdout
         self.cmdqueue = []
         self.completekey = completekey
 
@@ -108,7 +102,7 @@ class Cmd:
                 import readline
                 self.old_completer = readline.get_completer()
                 readline.set_completer(self.complete)
-                readline.parse_and_bind(self.completekey+": complete")
+                readline.parse_and_bind(f"{self.completekey}: complete")
             except ImportError:
                 pass
         try:
@@ -120,20 +114,16 @@ class Cmd:
             while not stop:
                 if self.cmdqueue:
                     line = self.cmdqueue.pop(0)
+                elif self.use_rawinput:
+                    try:
+                        line = input(self.prompt)
+                    except EOFError:
+                        line = 'EOF'
                 else:
-                    if self.use_rawinput:
-                        try:
-                            line = input(self.prompt)
-                        except EOFError:
-                            line = 'EOF'
-                    else:
-                        self.stdout.write(self.prompt)
-                        self.stdout.flush()
-                        line = self.stdin.readline()
-                        if not len(line):
-                            line = 'EOF'
-                        else:
-                            line = line.rstrip('\r\n')
+                    self.stdout.write(self.prompt)
+                    self.stdout.flush()
+                    line = self.stdin.readline()
+                    line = 'EOF' if not len(line) else line.rstrip('\r\n')
                 line = self.precmd(line)
                 stop = self.onecmd(line)
                 stop = self.postcmd(stop, line)
@@ -178,14 +168,15 @@ class Cmd:
         if not line:
             return None, None, line
         elif line[0] == '?':
-            line = 'help ' + line[1:]
+            line = f'help {line[1:]}'
         elif line[0] == '!':
             if hasattr(self, 'do_shell'):
-                line = 'shell ' + line[1:]
+                line = f'shell {line[1:]}'
             else:
                 return None, None, line
         i, n = 0, len(line)
-        while i < n and line[i] in self.identchars: i = i+1
+        while i < n and line[i] in self.identchars:
+            i += 1
         cmd, arg = line[:i], line[i:].strip()
         return cmd, arg, line
 
@@ -209,12 +200,11 @@ class Cmd:
             self.lastcmd = ''
         if cmd == '':
             return self.default(line)
-        else:
-            try:
-                func = getattr(self, 'do_' + cmd)
-            except AttributeError:
-                return self.default(line)
-            return func(arg)
+        try:
+            func = getattr(self, f'do_{cmd}')
+        except AttributeError:
+            return self.default(line)
+        return func(arg)
 
     def emptyline(self):
         """Called when an empty line is entered in response to the prompt.
@@ -245,7 +235,7 @@ class Cmd:
         return []
 
     def completenames(self, text, *ignored):
-        dotext = 'do_'+text
+        dotext = f'do_{text}'
         return [a[3:] for a in self.get_names() if a.startswith(dotext)]
 
     def complete(self, text, state):
@@ -267,7 +257,7 @@ class Cmd:
                     compfunc = self.completedefault
                 else:
                     try:
-                        compfunc = getattr(self, 'complete_' + cmd)
+                        compfunc = getattr(self, f'complete_{cmd}')
                     except AttributeError:
                         compfunc = self.completedefault
             else:
@@ -285,8 +275,7 @@ class Cmd:
 
     def complete_help(self, *args):
         commands = set(self.completenames(*args))
-        topics = set(a[5:] for a in self.get_names()
-                     if a.startswith('help_' + args[0]))
+        topics = {a[5:] for a in self.get_names() if a.startswith(f'help_{args[0]}')}
         return list(commands | topics)
 
     def do_help(self, arg):
@@ -294,11 +283,10 @@ class Cmd:
         if arg:
             # XXX check arg syntax
             try:
-                func = getattr(self, 'help_' + arg)
+                func = getattr(self, f'help_{arg}')
             except AttributeError:
                 try:
-                    doc=getattr(self, 'do_' + arg).__doc__
-                    if doc:
+                    if doc := getattr(self, f'do_{arg}').__doc__:
                         self.stdout.write("%s\n"%str(doc))
                         return
                 except AttributeError:
@@ -310,10 +298,7 @@ class Cmd:
             names = self.get_names()
             cmds_doc = []
             cmds_undoc = []
-            topics = set()
-            for name in names:
-                if name[:5] == 'help_':
-                    topics.add(name[5:])
+            topics = {name[5:] for name in names if name[:5] == 'help_'}
             names.sort()
             # There can be duplicates if routines overridden
             prevname = ''
@@ -353,11 +338,12 @@ class Cmd:
             self.stdout.write("<empty>\n")
             return
 
-        nonstrings = [i for i in range(len(list))
-                        if not isinstance(list[i], str)]
-        if nonstrings:
-            raise TypeError("list[i] not a string for i in %s"
-                            % ", ".join(map(str, nonstrings)))
+        if nonstrings := [
+            i for i in range(len(list)) if not isinstance(list[i], str)
+        ]:
+            raise TypeError(
+                f'list[i] not a string for i in {", ".join(map(str, nonstrings))}'
+            )
         size = len(list)
         if size == 1:
             self.stdout.write('%s\n'%str(list[0]))
@@ -389,13 +375,10 @@ class Cmd:
             texts = []
             for col in range(ncols):
                 i = row + nrows*col
-                if i >= size:
-                    x = ""
-                else:
-                    x = list[i]
+                x = "" if i >= size else list[i]
                 texts.append(x)
             while texts and not texts[-1]:
                 del texts[-1]
             for col in range(len(texts)):
                 texts[col] = texts[col].ljust(colwidths[col])
-            self.stdout.write("%s\n"%str("  ".join(texts)))
+            self.stdout.write("%s\n" % "  ".join(texts))

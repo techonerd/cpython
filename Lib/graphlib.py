@@ -97,13 +97,8 @@ class TopologicalSorter:
         self._ready_nodes = [
             i.node for i in self._node2info.values() if i.npredecessors == 0
         ]
-        # ready_nodes is set before we look for cycles on purpose:
-        # if the user wants to catch the CycleError, that's fine,
-        # they can continue using the instance to grab as many
-        # nodes as possible before cycles block more progress
-        cycle = self._find_cycle()
-        if cycle:
-            raise CycleError(f"nodes are in a cycle", cycle)
+        if cycle := self._find_cycle():
+            raise CycleError("nodes are in a cycle", cycle)
 
     def get_ready(self):
         """Return a tuple of all the nodes that are ready.

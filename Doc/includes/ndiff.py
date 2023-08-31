@@ -49,7 +49,7 @@ def fopen(fname):
     try:
         return open(fname)
     except IOError as detail:
-        return fail("couldn't open " + fname + ": " + str(detail))
+        return fail(f"couldn't open {fname}: {str(detail)}")
 
 # open two files & spray the diff to stdout; return false iff a problem
 def fcompare(f1name, f2name):

@@ -241,8 +241,8 @@ class IMAP4:
             self._cmd_log_idx = 0
             self._cmd_log = {}           # Last `_cmd_log_len' interactions
             if self.debug >= 1:
-                self._mesg('imaplib version %s' % __version__)
-                self._mesg('new IMAP4 connection, tag=%s' % self.tagpre)
+                self._mesg(f'imaplib version {__version__}')
+                self._mesg(f'new IMAP4 connection, tag={self.tagpre}')
 
         self.welcome = self._get_response()
         if 'PREAUTH' in self.untagged_responses:
@@ -258,7 +258,7 @@ class IMAP4:
                 self._mesg('CAPABILITIES: %r' % (self.capabilities,))
 
         for version in AllowedVersions:
-            if not version in self.capabilities:
+            if version not in self.capabilities:
                 continue
             self.PROTOCOL_VERSION = version
             return
@@ -270,7 +270,7 @@ class IMAP4:
         #       Allow UPPERCASE variants of IMAP4 command methods.
         if attr in Commands:
             return getattr(self, attr.lower())
-        raise AttributeError("Unknown IMAP4 command: '%s'" % attr)
+        raise AttributeError(f"Unknown IMAP4 command: '{attr}'")
 
     def __enter__(self):
         return self
@@ -403,13 +403,10 @@ class IMAP4:
             mailbox = 'INBOX'
         if flags:
             if (flags[0],flags[-1]) != ('(',')'):
-                flags = '(%s)' % flags
+                flags = f'({flags})'
         else:
             flags = None
-        if date_time:
-            date_time = Time2Internaldate(date_time)
-        else:
-            date_time = None
+        date_time = Time2Internaldate(date_time) if date_time else None
         literal = MapCRLF.sub(CRLF, message)
         if self.utf8_enabled:
             literal = b'UTF8 (' + literal + b')'
@@ -628,7 +625,7 @@ class IMAP4:
         import hmac
         pwd = (self.password.encode('utf-8') if isinstance(self.password, str)
                                              else self.password)
-        return self.user + " " + hmac.HMAC(pwd, challenge, 'md5').hexdigest()
+        return f"{self.user} " + hmac.HMAC(pwd, challenge, 'md5').hexdigest()
 
 
     def logout(self):
@@ -749,21 +746,18 @@ class IMAP4:
         """
         self.untagged_responses = {}    # Flush old responses.
         self.is_readonly = readonly
-        if readonly:
-            name = 'EXAMINE'
-        else:
-            name = 'SELECT'
+        name = 'EXAMINE' if readonly else 'SELECT'
         typ, dat = self._simple_command(name, mailbox)
         if typ != 'OK':
             self.state = 'AUTH'     # Might have been 'SELECTED'
             return typ, dat
         self.state = 'SELECTED'
         if 'READ-ONLY' in self.untagged_responses \
-                and not readonly:
+                    and not readonly:
             if __debug__:
                 if self.debug >= 1:
                     self._dump_ur(self.untagged_responses)
-            raise self.readonly('%s is not writable' % mailbox)
+            raise self.readonly(f'{mailbox} is not writable')
         return typ, self.untagged_responses.get('EXISTS', [None])
 
 
@@ -801,7 +795,7 @@ class IMAP4:
         #if not name in self.capabilities:      # Let the server decide!
         #       raise self.error('unimplemented extension command: %s' % name)
         if (sort_criteria[0],sort_criteria[-1]) != ('(',')'):
-            sort_criteria = '(%s)' % sort_criteria
+            sort_criteria = f'({sort_criteria})'
         typ, dat = self._simple_command(name, sort_criteria, charset, *search_criteria)
         return self._untagged_response(typ, dat, name)
 
@@ -818,14 +812,13 @@ class IMAP4:
         if ssl_context is None:
             ssl_context = ssl._create_stdlib_context()
         typ, dat = self._simple_command(name)
-        if typ == 'OK':
-            self.sock = ssl_context.wrap_socket(self.sock,
-                                                server_hostname=self.host)
-            self.file = self.sock.makefile('rb')
-            self._tls_established = True
-            self._get_capabilities()
-        else:
+        if typ != 'OK':
             raise self.error("Couldn't establish TLS session")
+        self.sock = ssl_context.wrap_socket(self.sock,
+                                            server_hostname=self.host)
+        self.file = self.sock.makefile('rb')
+        self._tls_established = True
+        self._get_capabilities()
         return self._untagged_response(typ, dat, name)
 
 
@@ -847,7 +840,7 @@ class IMAP4:
         (typ, [data]) = <instance>.store(message_set, command, flags)
         """
         if (flags[0],flags[-1]) != ('(',')'):
-            flags = '(%s)' % flags  # Avoid quoting the flags
+            flags = f'({flags})'
         typ, dat = self._simple_command('STORE', message_set, command, flags)
         return self._untagged_response(typ, dat, 'FETCH')
 
@@ -879,8 +872,8 @@ class IMAP4:
         Returns response appropriate to 'command'.
         """
         command = command.upper()
-        if not command in Commands:
-            raise self.error("Unknown IMAP4 UID command: %s" % command)
+        if command not in Commands:
+            raise self.error(f"Unknown IMAP4 UID command: {command}")
         if self.state not in Commands[command]:
             raise self.error("command %s illegal in state %s, "
                              "only allowed in states %s" %
@@ -888,10 +881,7 @@ class IMAP4:
                               ', '.join(Commands[command])))
         name = 'UID'
         typ, dat = self._simple_command(name, command, *args)
-        if command in ('SEARCH', 'SORT', 'THREAD'):
-            name = command
-        else:
-            name = 'FETCH'
+        name = command if command in ('SEARCH', 'SORT', 'THREAD') else 'FETCH'
         return self._untagged_response(typ, dat, name)
 
 
@@ -932,7 +922,7 @@ class IMAP4:
         name = name.upper()
         #if not name in self.capabilities:      # Let the server decide!
         #    raise self.error('unknown extension command: %s' % name)
-        if not name in Commands:
+        if name not in Commands:
             Commands[name] = (self.state,)
         return self._simple_command(name, *args)
 
@@ -956,8 +946,7 @@ class IMAP4:
 
 
     def _check_bye(self):
-        bye = self.untagged_responses.get('BYE')
-        if bye:
+        if bye := self.untagged_responses.get('BYE'):
             raise self.abort(bye[-1].decode(self._encoding, 'replace'))
 
 
@@ -975,7 +964,7 @@ class IMAP4:
                 del self.untagged_responses[typ]
 
         if 'READ-ONLY' in self.untagged_responses \
-        and not self.is_readonly:
+            and not self.is_readonly:
             raise self.readonly('mailbox status changed to READ-ONLY')
 
         tag = self._new_tag()
@@ -1005,7 +994,7 @@ class IMAP4:
         try:
             self.send(data + CRLF)
         except OSError as val:
-            raise self.abort('socket error: %s' % val)
+            raise self.abort(f'socket error: {val}')
 
         if literal is None:
             return tag
@@ -1024,13 +1013,13 @@ class IMAP4:
 
             if __debug__:
                 if self.debug >= 4:
-                    self._mesg('write literal size %s' % len(literal))
+                    self._mesg(f'write literal size {len(literal)}')
 
             try:
                 self.send(literal)
                 self.send(CRLF)
             except OSError as val:
-                raise self.abort('socket error: %s' % val)
+                raise self.abort(f'socket error: {val}')
 
             if not literator:
                 break
@@ -1046,13 +1035,13 @@ class IMAP4:
         try:
             typ, data = self._get_tagged_response(tag, expect_bye=logout)
         except self.abort as val:
-            raise self.abort('command: %s => %s' % (name, val))
+            raise self.abort(f'command: {name} => {val}')
         except self.error as val:
-            raise self.error('command: %s => %s' % (name, val))
+            raise self.error(f'command: {name} => {val}')
         if not logout:
             self._check_bye()
         if typ == 'BAD':
-            raise self.error('%s command error: %s %s' % (name, typ, data))
+            raise self.error(f'{name} command error: {typ} {data}')
         return typ, data
 
 
@@ -1078,7 +1067,7 @@ class IMAP4:
 
         if self._match(self.tagre, resp):
             tag = self.mo.group('tag')
-            if not tag in self.tagged_commands:
+            if tag not in self.tagged_commands:
                 raise self.abort('unexpected tagged response: %r' % resp)
 
             typ = self.mo.group('type')
@@ -1118,7 +1107,7 @@ class IMAP4:
                 size = int(self.mo.group('size'))
                 if __debug__:
                     if self.debug >= 4:
-                        self._mesg('read literal size %s' % size)
+                        self._mesg(f'read literal size {size}')
                 data = self.read(size)
 
                 # Store response with literal as tuple
@@ -1133,13 +1122,13 @@ class IMAP4:
 
         # Bracketed response information?
 
-        if typ in ('OK', 'NO', 'BAD') and self._match(Response_code, dat):
+        if typ in {'OK', 'NO', 'BAD'} and self._match(Response_code, dat):
             typ = self.mo.group('type')
             typ = str(typ, self._encoding)
             self._append_untagged(typ, self.mo.group('data'))
 
         if __debug__:
-            if self.debug >= 1 and typ in ('NO', 'BAD', 'BYE'):
+            if self.debug >= 1 and typ in {'NO', 'BAD', 'BYE'}:
                 self._mesg('%s response: %r' % (typ, dat))
 
         return resp
@@ -1222,7 +1211,7 @@ class IMAP4:
         arg = arg.replace('\\', '\\\\')
         arg = arg.replace('"', '\\"')
 
-        return '"' + arg + '"'
+        return f'"{arg}"'
 
 
     def _simple_command(self, name, *args):
@@ -1233,12 +1222,12 @@ class IMAP4:
     def _untagged_response(self, typ, dat, name):
         if typ == 'NO':
             return typ, dat
-        if not name in self.untagged_responses:
+        if name not in self.untagged_responses:
             return typ, [None]
         data = self.untagged_responses.pop(name)
         if __debug__:
             if self.debug >= 5:
-                self._mesg('untagged_responses[%s] => %s' % (name, data))
+                self._mesg(f'untagged_responses[{name}] => {data}')
         return typ, data
 
 
@@ -1389,9 +1378,7 @@ class _Authenticator:
 
     def process(self, data):
         ret = self.mech(self.decode(data))
-        if ret is None:
-            return b'*'     # Abort conversation
-        return self.encode(ret)
+        return b'*' if ret is None else self.encode(ret)
 
     def encode(self, inp):
         #
@@ -1412,15 +1399,12 @@ class _Authenticator:
             else:
                 t = inp
                 inp = b''
-            e = binascii.b2a_base64(t)
-            if e:
+            if e := binascii.b2a_base64(t):
                 oup = oup + e[:-1]
         return oup
 
     def decode(self, inp):
-        if not inp:
-            return b''
-        return binascii.a2b_base64(inp)
+        return b'' if not inp else binascii.a2b_base64(inp)
 
 Months = ' Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
 Mon2num = {s.encode():n+1 for n, s in enumerate(Months[1:])}
@@ -1478,10 +1462,7 @@ def ParseFlags(resp):
     """Convert IMAP4 flags response to python tuple."""
 
     mo = Flags.match(resp)
-    if not mo:
-        return ()
-
-    return tuple(mo.group('flags').split())
+    return () if not mo else tuple(mo.group('flags').split())
 
 
 def Time2Internaldate(date_time):
@@ -1520,7 +1501,7 @@ def Time2Internaldate(date_time):
         return date_time        # Assume in correct format
     else:
         raise ValueError("date_time not of a known type")
-    fmt = '"%d-{}-%Y %H:%M:%S %z"'.format(Months[dt.month])
+    fmt = f'"%d-{Months[dt.month]}-%Y %H:%M:%S %z"'
     return dt.strftime(fmt)
 
 
@@ -1582,9 +1563,9 @@ if __name__ == '__main__':
     )
 
     def run(cmd, args):
-        M._mesg('%s %s' % (cmd, args))
+        M._mesg(f'{cmd} {args}')
         typ, dat = getattr(M, cmd)(*args)
-        M._mesg('%s => %s %s' % (cmd, typ, dat))
+        M._mesg(f'{cmd} => {typ} {dat}')
         if typ == 'NO': raise dat[0]
         return dat
 
